@@ -1,27 +1,47 @@
-;(function(editor, body, undefined) {
+;(function(editorTable, body, undefined) {
 
     /**
-     * Listeners for the 'click' event. The key is the id of the
+     * Listeners for the 'click' event. The key is a selector of the
      * element, the value is the function.
      **/
     var clickListeners = {},
 
         sizeSelector   = document.getElementById( 'size' ),
+        editor         = new Editor( editorTable ),
 
         FILLED         = 'filled',
 
         currentWidth, currentHeight;
 
-    function initEditor( width, height ) {
+    function Editor( el ) {
+        
+        this.table = el;
+    
+    }
+
+    /**
+     * A level.
+     * @cells [Array]: a boolean array
+     **/
+    function Level( cells ) {
+        
+        this.cells = cells;
+    
+    }
+
+    /**
+     * Initialize the editor.
+     **/
+    Editor.prototype.init = function initEditor( width, height ) {
 
         var i, j, tr, td, el;
 
-        currentWidth = width;
-        currentHeight = height;
+        this.width = width;
+        this.height = height;
 
-        while ( el = editor.firstChild ) {
+        while ( el = this.table.firstChild ) {
 
-            editor.removeChild( el );
+            this.table.removeChild( el );
 
         }
 
@@ -35,35 +55,20 @@
 
             }
 
-            editor.appendChild( tr );
+            this.table.appendChild( tr );
 
         }
 
-    }
-
-    function getSelectedSize() {
-
-        var size = sizeSelector.value.split( 'x' );
-
-        return [ +size[0], size[1] ? +size[1] : +size[0] ];
-
-    }
+    };
 
     /**
-     * Return the current level as a boolean array:
-     *
-     *  [
-     *      [  true, false, ... ],
-     *      [ false, false, ... ],
-     *      ...
-     *  ]
-     *
+     * Return the current level
      **/
-    function levelToArray() {
+    Editor.prototype.getLevel = function editor2level() {
 
-        var lines = [].slice.call(editor.children);
+        var lines = [].slice.call(this.table.children);
 
-        return lines.map(function( l ) {
+        return new Level(lines.map(function( l ) {
 
             return [].map.call(l.children, function( cell ) {
 
@@ -71,23 +76,25 @@
 
             });
 
-        });
+        }));
 
-    }
+    };
 
-    function levelToString() {
+    Level.prototype.getGameId = function levelToGameId() {
 
         var indicators = [],
-            level      = levelToArray(),
+            level      = this.cells,
+            height     = this.cells.length,
+            width      = this.cells[0].length,
             indicator, count, i, j;
 
         // vertical indicators
-        for (i=0; i<currentWidth; i++) {
+        for (i=0; i<width; i++) {
 
             count      = 0;
             indicator  = [];
 
-            for (j=0; j<currentHeight; j++) {
+            for (j=0; j<height; j++) {
                 
                 if (!level[j][i]) {
                     
@@ -112,12 +119,12 @@
         }
 
         // horizontal indicators
-        for (i=0; i<currentHeight; i++) {
+        for (i=0; i<height; i++) {
 
             count      = 0;
             indicator  = [];
 
-            for (j=0; j<currentWidth; j++) {
+            for (j=0; j<width; j++) {
                 
                 if (!level[i][j]) {
                     
@@ -142,20 +149,32 @@
         }
 
 
-        return '' + currentWidth + 'x' + currentHeight +
+        return '' + width + 'x' + height +
                     ':' + indicators.join( '/' );
+
+    }
+
+    /**
+     * Return the currently selected size of the level (width, height)
+     **/
+    function getSelectedSize() {
+
+        var size = sizeSelector.value.split( 'x' ),
+            w = +size[0], h = +size[1];
+
+        return [ w, h || w ];
 
     }
 
     clickListeners['#new'] = function newLevel() {
 
-        return initEditor.apply( null, getSelectedSize() );
+        return editor.init.apply( editor, getSelectedSize() );
 
     };
 
     clickListeners['#export'] = function exportLevel() {
 
-        prompt('Level ID:', levelToString());
+        prompt('Level ID:', editor.getLevel().getGameId());
 
     }
 
