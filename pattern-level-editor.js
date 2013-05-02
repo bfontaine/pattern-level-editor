@@ -8,6 +8,7 @@
 
         sizeSelector   = document.getElementById( 'size' ),
         editor         = new Editor( editorTable ),
+        loader         = document.getElementById( 'load' ),
 
         FILLED         = 'filled',
 
@@ -25,7 +26,10 @@
      **/
     function Level( cells ) {
         
+        this.title = '';
         this.cells = cells;
+        this.height = cells.length;
+        this.width = this.height ? cells[ 0 ].length : 0;
     
     }
 
@@ -51,13 +55,48 @@
 
             for (j=0; j<width; j++) {
 
-                tr.appendChild(document.createElement( 'td' ));
+                var td = document.createElement( 'td' );
+
+                if ( this.level && this.level.cells[i][j] ) {
+
+                    td.className = FILLED;
+
+                }
+
+                tr.appendChild( td );
 
             }
 
             this.table.appendChild( tr );
 
         }
+
+    };
+
+    Editor.prototype.reset = function() {
+
+        var size   = getSelectedSize(),
+            width  = size[ 0 ],
+            height = size[ 1 ],
+            cells  = [],
+            line, i, j;
+
+        for ( i=0; i<height; i++ ) {
+
+            line = [];
+
+            for ( j=0; j<width; j++ ) {
+
+                line.push( false );
+
+            }
+
+            cells.push( line );
+
+        }
+
+        this.level = new Level( cells );
+        this.init( width, height );
 
     };
 
@@ -80,12 +119,15 @@
 
     };
 
+    /**
+     * Return the Game ID for a level
+     **/
     Level.prototype.getGameId = function levelToGameId() {
 
         var indicators = [],
             level      = this.cells,
-            height     = this.cells.length,
-            width      = this.cells[0].length,
+            height     = this.height,
+            width      = this.width,
             indicator, count, i, j;
 
         // vertical indicators
@@ -96,22 +138,17 @@
 
             for (j=0; j<height; j++) {
                 
-                if (!level[j][i]) {
+                if (level[j][i]) { count++; continue; }
                     
-                    if (count > 0) {
+                if (count > 0) {
 
-                        indicator.push(count);
-                        count = 0;
-
-                    }
-                
-                } else {
-
-                    count++;
+                    indicator.push(count);
+                    count = 0;
 
                 }
 
             } 
+
             if (count > 0) { indicator.push(count); }
 
             indicators.push( indicator.join( '.' ) );
@@ -126,33 +163,99 @@
 
             for (j=0; j<width; j++) {
                 
-                if (!level[i][j]) {
+                if (level[i][j]) { count++; continue; }
                     
-                    if (count > 0) {
+                if (count > 0) {
 
-                        indicator.push(count);
-                        count = 0;
-
-                    }
-                
-                } else {
-
-                    count++;
+                    indicator.push(count);
+                    count = 0;
 
                 }
 
             }
+
             if (count > 0) { indicator.push(count); }
 
             indicators.push( indicator.join( '.' ) );
 
         }
 
-
         return '' + width + 'x' + height +
                     ':' + indicators.join( '/' );
 
     }
+
+    /**
+     * Serialize a level
+     **/
+    Level.prototype.toString = function serializeLevel() {
+
+        return this.cells.map(function( line ) {
+
+            return line.map(function( cell ) {
+
+                return cell ? '1' : '0';
+
+            }).join('');
+
+        }).join(',');
+
+    };
+
+    /**
+     * Unserialize a level
+     **/
+    Level.unserialize = function unserializeLevel( str ) {
+
+        var cells = str.split( ',' ).map(function( line ) {
+
+            return line.split( '' ).map(function( chr ) {
+
+                return chr === '1';
+
+            });
+
+        });
+
+        return new Level(cells);
+
+    };
+    
+    /**
+     * Return a list of saved levels' titles.
+     **/
+    Editor.listSavedLevels = function listSavedLevels() {
+
+        var titles = [], title;
+
+        for ( title in localStorage ) {
+            if ( !localStorage.hasOwnProperty( title ) ) {
+
+                continue;
+
+            }
+
+            titles.push( title );
+
+        }
+
+        return titles;
+
+    };
+
+    Editor.prototype.loadLevel = function loadLevel( title ) {
+
+        var serialized = localStorage.getItem( title );
+
+        if ( !serialized ) { alert( 'No such level!' ); }
+
+        this.level = Level.unserialize( serialized );
+
+        this.level.title = title;
+
+        this.init( this.level.width, this.level.height );
+
+    };
 
     /**
      * Return the currently selected size of the level (width, height)
@@ -168,15 +271,26 @@
 
     clickListeners['#new'] = function newLevel() {
 
-        return editor.init.apply( editor, getSelectedSize() );
+        return editor.reset();
 
     };
 
     clickListeners['#export'] = function exportLevel() {
 
+        if ( !editor.height || !editor.width ) { return; }
+
         prompt('Level ID:', editor.getLevel().getGameId());
 
     }
+
+    clickListeners['#save'] = function saveLevel() {
+
+        var level = editor.getLevel(),
+            title = prompt( 'Title?', level.title );
+
+        return localStorage.setItem( title, level.toString() );
+
+    };
 
     clickListeners['td'] = function toggleCellState() {
 
@@ -202,5 +316,26 @@
         });
 
     }, false);
+    
+    loader.addEventListener( 'change', function( ev ) {
+
+        var v = loader.selectedOptions[0].value;
+
+        if ( v === '-' ) { return; }
+
+        editor.loadLevel( v );
+
+    });
+
+    // list saved levels
+    Editor.listSavedLevels().forEach(function( title ) {
+
+        var opt = document.createElement( 'option' );
+
+        opt.value = opt.innerText = title;
+
+        loader.appendChild( opt );
+
+    });
 
 })(document.getElementById('editor'), document.getElementsByTagName('body')[0]);
