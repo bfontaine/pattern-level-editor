@@ -14,6 +14,13 @@
 
         currentWidth, currentHeight;
 
+    // helper
+    function removeChildren( el, e ) {
+
+        while ( e = el.firstChild ) { el.removeChild( e ); }
+
+    }
+
     function Editor( el ) {
         
         this.table = el;
@@ -43,11 +50,7 @@
         this.width = width;
         this.height = height;
 
-        while ( el = this.table.firstChild ) {
-
-            this.table.removeChild( el );
-
-        }
+        removeChildren( this.table );
 
         for (i=0; i<height; i++) {
 
@@ -269,6 +272,23 @@
 
     }
 
+    function updateSavedLevelsList() {
+
+        removeChildren( loader );
+
+        // list saved levels
+        Editor.listSavedLevels().forEach(function( title ) {
+
+            var opt = document.createElement( 'option' );
+
+            opt.value = opt.innerText = title;
+
+            loader.appendChild( opt );
+
+        });
+
+    }
+
     clickListeners['#new'] = function newLevel() {
 
         return editor.reset();
@@ -288,7 +308,9 @@
         var level = editor.getLevel(),
             title = prompt( 'Title?', level.title );
 
-        return localStorage.setItem( title, level.toString() );
+        localStorage.setItem( title, level.toString() );
+
+        updateSavedLevelsList();
 
     };
 
@@ -327,15 +349,6 @@
 
     });
 
-    // list saved levels
-    Editor.listSavedLevels().forEach(function( title ) {
-
-        var opt = document.createElement( 'option' );
-
-        opt.value = opt.innerText = title;
-
-        loader.appendChild( opt );
-
-    });
+    updateSavedLevelsList();
 
 })(document.getElementById('editor'), document.getElementsByTagName('body')[0]);
